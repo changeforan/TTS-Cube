@@ -51,15 +51,15 @@ void Matrix::affine(Matrix &b, Matrix &c){
     //B kxn
 
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                this->rows, b.cols, this->cols, 1, this->data, this->cols, b.data, b.cols, 0, c.data, b.cols);
+                this->rows, b.cols, this->cols, 1, this->data, this->cols, b.data, b.cols, 1, c.data, b.cols);
 }
 
 void Matrix::apply_tanh(){
-    vdTanh(rows*cols, this->data, this->data);
-//    int total=cols*rows;
-//    for (int i=0;i<total;i++){
-//        data[i]=tanh(data[i]);
-//    }
+    //vdTanh(rows*cols, this->data, this->data);
+    int total=cols*rows;
+    for (int i=0;i<total;i++){
+        data[i]=tanh(data[i]);
+    }
 }
 
 void Matrix::add_scalar(double scalar){
@@ -159,8 +159,74 @@ void Matrix::reset(){
     memset(this->data, 0, rows*cols*sizeof(double));
 }
 
+SparseMatrix::SparseMatrix(){
+    rows=0;
+    cols=0;
+    num_elements=0;
+    vals=0x0;
+    ptrE=0x0;
+    ptrB=0x0;
+}
+
+SparseMatrix::SparseMatrix(Matrix &orig, Matrix &mask){
+    //count non-zero elements
+    this->rows=orig.rows;
+    this->cols=orig.cols;
+    int total_elem=orig.rows*orig.cols;
+    int nzmax=0;
+    double *A_dense=new double[orig.rows*orig.cols];
+    for (int i=0;i<total_elem;i++){
+        int row=i/orig.cols;
+        int col=i%orig.cols;
+        int new_index=col*orig.rows+row;
+        if (mask.data[i]>0.5){
+            nzmax++;
+            A_dense[i]=orig.data[i];
+        }else{
+            A_dense[i]=0.0;
+        }
+    }
+    printf("NZMAX=%d\n", nzmax);
+    this->num_elements=nzmax;
+    this->vals=new double[nzmax];
+    this->ptrB=new int[nzmax];
+    this->ptrE=new int[orig.rows+1];
+    MKL_INT job[8];
+    job[0] = 0;  // convert TO CSR.
+    job[1] = 0;  // Zero-based indexing for input.
+    job[2] = 0;  // Zero-based indexing for output.
+    job[3] = 2;  // adns is  a whole matrix A.
+    job[4] = nzmax;  // Maximum number of non-zero elements allowed.
+    job[5] = 3;  // all 3 arays are generated for output.
+    int info;
+    mkl_ddnscsr(job, &orig.rows, &orig.cols, A_dense, &orig.cols, this->vals, this->ptrB, this->ptrE, &info);
+
+    delete []A_dense;
+
+}
+
+void SparseMatrix::multiply(Matrix &b, Matrix &c){
+    //cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+    //            this->rows, b.cols, this->cols, 1, this->data, this->cols, b.data, b.cols, 0, c.data, b.cols); A - m x k, B k x n
+    char matdescra[6] = {'G', 'L', 'N', 'C', 'x', 'x'};
+    double alpha=1.0;
+    double beta=0.0;
+    char transa='n';
+    mkl_dcsrmm(&transa, &rows, &b.cols, &rows, &alpha, matdescra, vals, ptrB, ptrE, &(ptrE[1]), b.data, &b.cols, &beta, c.data, &b.cols );
+}
+
+SparseMatrix::~SparseMatrix(){
+    if (vals!=0x0){
+        delete []vals;
+        delete []ptrB;
+        delete []ptrE;
+    }
+}
+
+
 LSTM::LSTM(const LSTM &copy){
-    printf("\n\n\n\nHEEEEELPPP!!!!!!!\n\n\n\n\n");
+    printf("LSTM copy constructor not supported.\n");
+    exit(0);
 }
 
 LSTM::LSTM(){
@@ -187,8 +253,8 @@ void LSTM::add_input(Matrix &input){
     this->i_aot.data=tmp.data+2*hidden_size;
     this->i_agt.data=tmp.data+3*hidden_size;
 
-    this->p_x2i.multiply(input, tmp);
-    this->p_h2i.multiply(this->ht,tmp2);
+    this->p_x2i_sparse.multiply(input, tmp);
+    this->p_h2i_sparse.multiply(this->ht,tmp2);
     tmp.add(tmp2, tmp);
     tmp.add(this->p_bi, tmp);
 
@@ -216,6 +282,8 @@ LSTM::LSTM(int input_size, int hidden_size){
     this->ht=Matrix(hidden_size);
     this->p_x2i=Matrix(hidden_size*4, input_size);
     this->p_h2i=Matrix(hidden_size*4, hidden_size);
+    this->m_x2i=Matrix(hidden_size*4, input_size);
+    this->m_h2i=Matrix(hidden_size*4, hidden_size);
     this->p_bi=Matrix(hidden_size*4);
 
     this->tmp=Matrix(hidden_size*4);
@@ -235,5 +303,12 @@ LSTM::LSTM(int input_size, int hidden_size){
 void LSTM::load_from_file(std::ifstream &f){
     p_x2i.load_from_file(f);
     p_h2i.load_from_file(f);
+    m_x2i.load_from_file(f);
+    m_h2i.load_from_file(f);
+    p_x2i_sparse=SparseMatrix(p_x2i, m_x2i);
+    p_h2i_sparse=SparseMatrix(p_h2i, m_h2i);
+    //apply the masks
+    m_x2i.cmultiply(p_x2i, p_x2i);
+    m_h2i.cmultiply(p_h2i, p_h2i);
     p_bi.load_from_file(f);
 }

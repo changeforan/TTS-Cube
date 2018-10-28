@@ -3,12 +3,54 @@
 #include <vector>
 #include <memory.h>
 
+class Matrix;
+class SparseMatrix{
+private:
+public:
+    double *vals;
+    int *ptrB;
+    int *ptrE;
+    int num_elements;
+    int rows;
+    int cols;
+    SparseMatrix();
+    SparseMatrix(Matrix &source, Matrix &mask);
+    SparseMatrix(const SparseMatrix &copy);
+    ~SparseMatrix();
+    void multiply(Matrix &b, Matrix &c);
+
+    SparseMatrix& operator=(const SparseMatrix &other){
+        if (other.cols==0 && other.rows==0){
+            rows=0;
+            cols=0;
+            num_elements=0;
+            vals=0x0;
+            ptrE=0x0;
+            ptrB=0x0;
+            return *this;
+        }
+
+        this->cols=other.cols;
+        this->rows=other.rows;
+        this->num_elements=other.num_elements;
+        this->vals=new double[other.num_elements];
+        this->ptrB=new int[other.num_elements];
+        this->ptrE=new int[other.rows+1];
+
+        memcpy(this->vals, other.vals, other.num_elements*sizeof(double));
+        memcpy(this->ptrB, other.ptrB, other.num_elements*sizeof(int));
+        memcpy(this->ptrE, other.ptrE, (other.rows+1)*sizeof(int));
+        //memcpy(this->data, other.data, cols*rows*sizeof(double));
+
+        return *this;
+    }
+};
 
 class Matrix{
-    private:
+private:
 
 
-    public:
+public:
     double *data;
     int cols;
     int rows;
@@ -47,6 +89,10 @@ class LSTM{
         //i
         Matrix p_x2i;
         Matrix p_h2i;
+        SparseMatrix p_x2i_sparse;
+        SparseMatrix p_h2i_sparse;
+        Matrix m_x2i;
+        Matrix m_h2i;
         Matrix p_bi;
 
 
