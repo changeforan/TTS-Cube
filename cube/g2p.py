@@ -92,7 +92,7 @@ def convert(params):
     model.load(params.model + '-bestAcc.network')
     from os import listdir
     from os.path import isfile, join
-    files_tmp = [f for f in listdir(params.input) if isfile(join(params.input, f)) and f.find('txt')]
+    files_tmp = [f for f in listdir(params.input) if isfile(join(params.input, f)) and f.find('txt') > -1]
     for file in files_tmp:
         with open(file, 'r') as f:
             line = f.readline()
