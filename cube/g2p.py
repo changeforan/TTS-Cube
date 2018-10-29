@@ -96,6 +96,7 @@ def convert(params):
     for file in files_tmp:
         with open(join(params.input, file), 'r') as f:
             line = f.readline()
+            print(line)
             words = line.split(' ')
             print(words)
         with open(join(params.input, file), 'w') as w:
