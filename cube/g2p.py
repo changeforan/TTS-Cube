@@ -99,8 +99,10 @@ def convert(params):
             line = f.readline()
             words = line.split(' ')
         # with open(join(params.input, file), 'w') as w:
-            phones = [model.transcribe(word) for word in words]
-            print(' '.join(phones))
+            phones = []
+            phones = phones.extend(model.transcribe(word) for word in words)
+            for phone in phones:
+                print(phone + ' ')
             # w.write(''.join(phones))
 
 
