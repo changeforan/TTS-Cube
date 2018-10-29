@@ -94,10 +94,10 @@ def convert(params):
     from os.path import isfile, join
     files_tmp = [f for f in listdir(params.input) if isfile(join(params.input, f)) and f.find('txt') > -1]
     for file in files_tmp:
-        with open(file, 'r') as f:
+        with open(join(params.input, file), 'r') as f:
             line = f.readline()
             words = line.split(' ')
-        with open(file, 'w') as w:
+        with open(join(params.input, file), 'w') as w:
             phones = [model.transcribe(word) for word in words]
             w.write(''.join(phones))
 
