@@ -83,10 +83,30 @@ def test(params):
     sys.stdout.write('Word level accuracy is ' + str(float(correct) / len(testset.entries)) + '\n')
 
 
+def convert(params):
+    from io_modules.encodings import Encodings
+    encodings = Encodings()
+    encodings.load(params.model + '.encodings')
+    from models.g2p import G2P
+    model = G2P(encodings)
+    model.load(params.model + '-bestAcc.network')
+    from os import listdir
+    from os.path import isfile, join
+    files_tmp = [f for f in listdir(params.input) if isfile(join(params.input, f)) and f.find('txt')]
+    for file in files_tmp:
+        with open(file, 'r') as f:
+            line = f.readline()
+            words = line.split(' ')
+        with open(file, 'w') as w:
+            phones = [model.transcribe(word) for word in words]
+            w.write(''.join(phones))
+
+
 if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('--train', action='store_true', dest='train', help='Train a new model')
     parser.add_option('--test', action='store_true', dest='test', help='Test the pretrained model')
+    parser.add_option('--convert', action='store_true', dest='convert', help='Convert G 2 P')
     parser.add_option('--input-file', action='store', dest='input', help='Input File')
     parser.add_option('--output-file', action='store', dest='output', help='Output file')
     parser.add_option('--model', action='store', dest='model', help='Pretrained model file')
@@ -125,5 +145,7 @@ if __name__ == '__main__':
         train(params)
     elif params.test:
         test(params)
+    elif params.convert:
+        convert(params)
     else:
-        print ("Invalid parameters. Use '--help' for help")
+        print("Invalid parameters. Use '--help' for help")
