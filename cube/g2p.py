@@ -94,6 +94,7 @@ def convert(params):
     from os.path import isfile, join
     files_tmp = [f for f in listdir(params.input) if isfile(join(params.input, f)) and f.find('txt') > -1]
     for file in files_tmp:
+        print(file)
         with open(join(params.input, file), 'r') as f:
             line = f.readline()
             print(line)
